@@ -1,3 +1,4 @@
+use anyhow::Result;
 pub trait HashFunction{
     fn hash(&self, x: usize)-> usize;
 }
@@ -33,7 +34,7 @@ impl CuckooTable{
         Self {hash1: h1, hash2: h2, size:sz, table1, table2 }
     }
     
-    pub fn insert(&mut self, xi: usize){
+    pub fn insert(&mut self, xi: usize) -> Result<(), &str>{
         // insert element x into either table
         let mut x = xi;
         loop {
@@ -44,7 +45,7 @@ impl CuckooTable{
                 let index2 = self.hash2.hash(y) % self.size;
                 if let Some(z) = self.table2[index2]{
                     if z==xi{
-                        panic!("we come into a cycle!! PANICKING");
+                        return Err("cycle, rehash");
                     }else{
                        self.table2[index2] = Some(y); // kick z out of the table
                        x = z; // then we continue the insertion to the first table
@@ -60,6 +61,7 @@ impl CuckooTable{
                 break;
             }
         }
+        Ok(())
     } 
 
     pub fn lookup(&self, x: usize) -> bool{
@@ -100,19 +102,19 @@ mod tests{
         let h2 = HashMod::new(11);
         let mut tab= CuckooTable::new(Box::new(h1), Box::new(h2), 13);
         let x = 10;
-        tab.insert(x);
+        assert_eq!(tab.insert(x),Ok(()));
         assert_eq!(tab.table1[10], Some(x));
     }
 
     #[test]
-    #[should_panic]
+    //#[should_panic]
     fn cycle_test(){
         let h1 = HashMod::new(13);
         let h2 = HashMod::new(11);
         let mut tab= CuckooTable::new(Box::new(h1), Box::new(h2), 13);
-        tab.insert(1);
-        tab.insert(144);
-        tab.insert(287);
+        assert_eq!(tab.insert(1),Ok(()));
+        assert_eq!(tab.insert(144),Ok(()));
+        assert_eq!(tab.insert(287),Err("cycle, rehash"));
     }
 
     #[test]
@@ -120,8 +122,8 @@ mod tests{
         let h1 = HashMod::new(13);
         let h2 = HashMod::new(11);
         let mut tab= CuckooTable::new(Box::new(h1), Box::new(h2), 13);
-        tab.insert(222);
-        tab.insert(111);
+        assert_eq!(tab.insert(222), Ok(()));
+        assert_eq!(tab.insert(111), Ok(()));
         assert!(tab.lookup(222) && tab.lookup(111));
         assert!(!tab.lookup(123));
     }
